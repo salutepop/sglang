@@ -12,7 +12,7 @@ from sglang.srt.layers.dp_attention import initialize_dp_attention_flags
 from sglang.srt.layers.linear import QKVParallelLinear, ReplicatedLinear
 from sglang.srt.runtime_context import SpawnRanks, reset_context
 from sglang.srt.server_args import ServerArgs
-from sglang.test.parallel_groups import parallel_scope, publish
+from sglang.test.parallel_groups import parallel_scope, publish, rank_size
 
 
 class TestQwenGenerationParallelGroups(unittest.TestCase):
@@ -53,10 +53,7 @@ class TestQwenGenerationParallelGroups(unittest.TestCase):
                                 (3, 4) if initialized and tensor_parallel else (0, 1)
                             )
                             self.assertEqual(
-                                (
-                                    getattr(layer, "tp_rank", 0),
-                                    getattr(layer, "tp_size", 1),
-                                ),
+                                rank_size(layer),
                                 expected,
                             )
                             self.assertEqual(
@@ -91,10 +88,7 @@ class TestQwenGenerationParallelGroups(unittest.TestCase):
                 tp = Mock(all_reduce=Mock(side_effect=lambda x: x * 2))
                 attn = Mock(all_reduce=Mock(side_effect=AssertionError("wrong group")))
                 for layer in (module.qkv_proj, module.proj):
-                    rank, size = (
-                        getattr(layer, "tp_rank", 0),
-                        getattr(layer, "tp_size", 1),
-                    )
+                    rank, size = rank_size(layer)
                     self.assertEqual((rank, size), (3, 4))
                     full = (
                         torch.arange(32 * 32, dtype=layer.weight.dtype).reshape(32, 32)
